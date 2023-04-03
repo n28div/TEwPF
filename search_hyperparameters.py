@@ -32,7 +32,26 @@ if __name__ == "__main__":
                                                       random_state=args.seed)
 
 
-  def objective(trial):   
+  def objective(trial):
+    prior = trial.suggest_categorical("bpm_prior", list(PRIORS.keys()))
+    if prior == "gaussian":
+      bpm_kwargs = {
+        "mu": trial.suggest_int("gaussian_prior_mu", 10, 300),
+        "sigma": trial.suggest_float("gaussian_prior_sigma", 1, 1000),
+      }
+    elif prior == "parncutt":
+      bpm_kwargs = {
+        "mu": trial.suggest_int("parncutt_prior_mu", 10, 300),
+        "sigma": trial.suggest_float("parncutt_prior_sigma", 0.01, 8),
+      }
+    elif prior == "resonance":
+      bpm_kwargs = {
+        "bpm_ext": trial.suggest_int("resonance_prior_bpm_ext", 10, 300),
+        "beta": trial.suggest_float("resonance_prior_beta", 0.01, 8),
+      }
+    else:
+      bpm_kwargs = {}
+
     detector = BPMDetector(
       min_bpm=trial.suggest_int("min_bpm", 10, 50),
       max_bpm=trial.suggest_int("max_bpm", 180, 300),
@@ -41,7 +60,8 @@ if __name__ == "__main__":
       smooth_bpm_window=trial.suggest_float("smooth_bpm_window", 0.5, 10),
       bpm_prior=trial.suggest_categorical("bpm_prior", list(PRIORS.keys())),
       estimator=trial.suggest_categorical("estimator", list(ESTIMATORS.keys())),
-      workers=os.cpu_count()
+      workers=os.cpu_count(),
+      prior_kwargs=bpm_kwargs
     )
 
     score =  cross_val_score(estimator=detector, 
@@ -53,6 +73,6 @@ if __name__ == "__main__":
     
     return score
 
-  study = optuna.create_study()
+  study = optuna.create_study(direction="maximize")
   study.optimize(objective, n_trials=args.its)
   study.trials_dataframe().to_csv(args.out)

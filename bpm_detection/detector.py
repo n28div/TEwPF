@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -23,7 +23,8 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
                bpm_prior: str = "uniform",
                estimator: str = "median",
                workers: int = 1,
-               verbose: bool = False):
+               verbose: bool = False,
+               prior_kwargs: Dict = {}):
     """
     Initialise the BPM detector with provided parameters.
 
@@ -37,6 +38,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
         estimator (str, optional): Estimator used to extract the global BPM. Defaults to "median".
         workers (int, optional): Number of workers for parallel execution. Defaults to 1.
         verbose (bool, optional): Show progress bar while predicting dataset. Defaults to False.
+        prior_kwargs (Dict, optional): Arguments for prior. Defaults to {}.
     """
     self.min_bpm = min_bpm
     self.max_bpm = max_bpm
@@ -47,6 +49,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
     self.bpm_prior = bpm_prior
     assert bpm_prior in PRIORS, f"Prior {bpm_prior} not in {PRIORS.keys()}."
     self.bpm_prior_func = PRIORS[bpm_prior]
+    self.prior_kwargs = prior_kwargs
 
     self.estimator = estimator
     assert estimator in ESTIMATORS, f"Estimator {estimator} not in {ESTIMATORS.keys()}."
@@ -54,6 +57,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
 
     self.workers = workers
     self.verbose = verbose
+
 
   def fit(self, *args, **kwars):
     return self
@@ -87,7 +91,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
       score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
       score = np.apply_along_axis(gaussian_filter1d, 0, score, sigma=self.smooth_time_window, truncate=1)
       
-      prior = self.bpm_prior_func(bpms).reshape(-1, 1)
+      prior = self.bpm_prior_func(bpms, **self.prior_kwargs).reshape(-1, 1)
       epsilon = 1e-30
       prior = (prior - prior.min() + epsilon) / (prior.max() - prior.min() + epsilon)
       score *= prior
