@@ -1,0 +1,1 @@
+from bpm_detection.detector import BPMDetector
