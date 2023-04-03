@@ -23,7 +23,7 @@ def histogram(local_bpms: np.array) -> float:
   Returns:
       float: Estimated global BPM.
   """
-  count, bins = numpy.histogram(local_bpms)
+  count, bins = np.histogram(local_bpms)
   return bins[count.argmax()]
 
 ESTIMATORS = {
