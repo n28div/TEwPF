@@ -1,8 +1,10 @@
 import pandas as pd
+import numpy as np
 
 import os
 import joblib
 import argparse
+import random
 
 from bpm_detection.dataset import load_dataset
 from bpm_detection import BPMDetector
@@ -23,13 +25,23 @@ parser.add_argument("--cv", type=int, default=5)
 
 if __name__ == "__main__":
   args = parser.parse_args()
-  data_df = pd.concat([load_dataset(d) for d in args.dataset])
 
-  X = [(row.time, row.duration) for _, row in data_df.iterrows()]
-  y = data_df.bpm.to_numpy()
-  X_train, X_test, y_train, y_test = train_test_split(X, y,
-                                                      train_size=0.75,
-                                                      random_state=args.seed)
+  data_path = os.path.join(args.out, "data.pkl")
+  if not os.path.exists(args.out):
+    os.mkdir(data_path)
+
+  if os.path.exists(data_path):
+    X_train, X_test, y_train, y_test = joblib.load(data_path)  
+  else:
+    data_df = pd.concat([load_dataset(d) for d in args.dataset])
+    X = [(row.time, row.duration) for _, row in data_df.iterrows()]
+    y = data_df.bpm.to_numpy()
+    X_train, X_test, y_train, y_test = train_test_split(X, y,
+                                                        train_size=0.8,
+                                                        shuffle=True,
+                                                        random_state=args.seed)
+    joblib.dump((X_train, X_test, y_train, y_test), data_path)
+
   for estimator in ESTIMATORS:
     for prior in PRIORS:
       def objective(trial):

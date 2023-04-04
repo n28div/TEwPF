@@ -85,22 +85,27 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
       tiled_times = np.tile(times, (bpms.shape[0], 1))
       score = np.cos(((bpms.reshape(-1, 1) * np.pi) / 120)  * tiled_times) ** 4
       score += np.cos(((bpms.reshape(-1, 1) * np.pi) / 30)  * tiled_times) ** 4
-      
-      score += (np.cos(((bpms.reshape(-1, 1) * np.pi) / 240)  * tiled_times) ** 2) * duration
+           
+      score_meter = [3, 4]
+      score = np.stack([
+        score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / 180)  * tiled_times) ** 6) * duration),
+        score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / 240)  * tiled_times) ** 6) * duration)])
 
-      score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
-      score = np.apply_along_axis(gaussian_filter1d, 0, score, sigma=self.smooth_time_window, truncate=1)
+      score = np.apply_along_axis(gaussian_filter1d, 2, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
+      score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=self.smooth_time_window, truncate=1)
       
       prior = self.bpm_prior_func(bpms, **self.prior_kwargs).reshape(-1, 1)
-      epsilon = 1e-30
-      prior = (prior - prior.min() + epsilon) / (prior.max() - prior.min() + epsilon)
       score *= prior
       
-      loc = bpms[score.cumsum(axis=1).argmax(axis=0)]
+      best_meter_score = score.sum(axis=2).max(axis=1).argmax()
+      best_score = score[0]
+      meter = score_meter[best_meter_score]
+
+      loc = bpms[score.cumsum(axis=0).argmax(axis=1)]
       glob = self.estimator_func(loc)
-      return glob, loc
+      return glob, loc, meter
 
     with ThreadPoolExecutor(self.workers) as executor:
-        results = [x for x, _ in tqdm(executor.map(estimate, X), total=len(X), disable=not self.verbose)]
+        results = [x for x in tqdm(executor.map(estimate, X), total=len(X), disable=not self.verbose)]
     
     return results
