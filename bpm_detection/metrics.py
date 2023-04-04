@@ -23,6 +23,6 @@ def accuracy(y: List[float], y_pred: List[float], accuracy_type: str = "1") -> b
     alphas = [1] if accuracy_type == "1" else [1/3, 1/2, 1, 2, 3]
 
     return np.mean([
-        np.any([(a * truth * 0.96) < pred < (a * truth * 1.04) for a in alphas])
+        np.any([(a * pred * 0.96) < truth < (a * pred * 1.04) for a in alphas])
         for pred, truth in zip(y_pred, y)
     ])
