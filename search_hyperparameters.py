@@ -28,7 +28,7 @@ if __name__ == "__main__":
 
   data_path = os.path.join(args.out, "data.pkl")
   if not os.path.exists(args.out):
-    os.mkdir(data_path)
+    os.mkdir(args.out)
 
   if os.path.exists(data_path):
     X_train, X_test, y_train, y_test = joblib.load(data_path)  
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     X = [(row.time, row.duration) for _, row in data_df.iterrows()]
     y = data_df.bpm.to_numpy()
     X_train, X_test, y_train, y_test = train_test_split(X, y,
-                                                        train_size=0.8,
+                                                        train_size=0.01,
                                                         shuffle=True,
                                                         random_state=args.seed)
     joblib.dump((X_train, X_test, y_train, y_test), data_path)
@@ -75,10 +75,14 @@ if __name__ == "__main__":
           prior_kwargs=bpm_kwargs
         )
 
+        def accuracy_wrapper(y, y_pred, **kwargs):
+          y_pred = [elem[0] for elem in y_pred]
+          return accuracy(y, y_pred, **kwargs)
+
         score =  cross_val_score(estimator=detector, 
                                 X=X_train, 
                                 y=y_train, 
-                                scoring=make_scorer(accuracy, greater_is_better=True, accuracy_type="1"),
+                                scoring=make_scorer(accuracy_wrapper, greater_is_better=True, accuracy_type="1"),
                                 cv=args.cv,
                                 n_jobs=-1).mean()
         

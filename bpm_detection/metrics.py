@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 
-def accuracy(X: List[float], y: List[float], accuracy_type: str = "1") -> bool:
+def accuracy(y: List[float], y_pred: List[float], accuracy_type: str = "1") -> bool:
     """
     Compute the accuracy of a prediction. A prediction is considered as 
     correct if it is within the 4% of the original label.
@@ -12,8 +12,8 @@ def accuracy(X: List[float], y: List[float], accuracy_type: str = "1") -> bool:
 
 
     Args:
-        X (List[float]): BPM Prediction
         y (List[float]): True BPM
+        y_pred (List[float]): BPM Prediction
         accuracy_type (str, optional): Accuracy type. Either "1" or "2" (default).
 
     Returns:
@@ -24,5 +24,5 @@ def accuracy(X: List[float], y: List[float], accuracy_type: str = "1") -> bool:
 
     return np.mean([
         np.any([(a * truth * 0.96) < pred < (a * truth * 1.04) for a in alphas])
-        for pred, truth in zip(X, y)
+        for pred, truth in zip(y_pred, y)
     ])
