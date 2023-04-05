@@ -101,7 +101,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
       best_score = score[best_meter_score]
       meter = score_meter[best_meter_score]
 
-      loc = bpms[score.cumsum(axis=0).argmax(axis=1)]
+      loc = bpms[best_score.cumsum(axis=1).argmax(axis=0)]
       glob = self.estimator_func(loc)
       return glob, loc, meter
 
