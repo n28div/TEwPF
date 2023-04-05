@@ -65,7 +65,6 @@ def resonance_prior(bpms: np.array, bpm_ext: int = 120, beta: float = 1.12):
   f_ext = 60 / bpm_ext
   f_0 = 60 / bpms
   resonance = (1 / np.sqrt((f_0**2 - f_ext**2)**2 + beta*(f_ext**2)))
-  resonance = (resonance - resonance.min()) / (resonance.max() - resonance.min())
   return resonance
 
 PRIORS = {
