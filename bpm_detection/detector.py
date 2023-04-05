@@ -78,7 +78,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
     globals = []
     bpms = np.arange(self.min_bpm, self.max_bpm, self.bpm_step)
 
-    def estimate(x: Tuple[np.array, np.array]) -> Tuple[float, List[float]]:
+    def estimate(x: Tuple[np.array, np.array]) -> Tuple[float, Tuple[Union[float, np.array]]]:
       times, duration = x
       times = times - times[0]
       
@@ -91,11 +91,11 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
         score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / 180)  * tiled_times) ** 6) * duration),
         score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / 240)  * tiled_times) ** 6) * duration)])
 
-      score = np.apply_along_axis(gaussian_filter1d, 2, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
-      score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=self.smooth_time_window, truncate=1)
-      
       prior = self.bpm_prior_func(bpms, **self.prior_kwargs).reshape(-1, 1)
       score *= prior
+      
+      score = np.apply_along_axis(gaussian_filter1d, 2, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
+      score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=self.smooth_time_window, truncate=1)
       
       best_meter_score = score.sum(axis=2).max(axis=1).argmax()
       best_score = score[best_meter_score]
@@ -103,7 +103,7 @@ class BPMDetector(BaseEstimator, ClassifierMixin):
 
       loc = bpms[best_score.cumsum(axis=1).argmax(axis=0)]
       glob = self.estimator_func(loc)
-      return glob, loc, meter
+      return glob, (loc, bpms, best_score, meter)
 
     with ThreadPoolExecutor(self.workers) as executor:
         results = [x for x in tqdm(executor.map(estimate, X), total=len(X), disable=not self.verbose)]
