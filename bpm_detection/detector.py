@@ -19,7 +19,10 @@ class PeriodicBPMDetector(BaseEstimator, ClassifierMixin):
   def __init__(self, 
                min_bpm: int = 30, 
                max_bpm: int = 300, 
-               bpm_step: float = 0.1, 
+               bpm_step: float = 0.1,
+               alpha: float = 1,
+               beta: float = 1,
+               gamma: float = 1,
                smooth_time_window: float = 3, 
                smooth_bpm_window: float = 1, 
                bpm_prior: str = "uniform",
@@ -34,6 +37,9 @@ class PeriodicBPMDetector(BaseEstimator, ClassifierMixin):
         min_bpm (int, optional): Minimum BPM checked. Defaults to 30.
         max_bpm (int, optional): Maximum BPM checked. Defaults to 300.
         bpm_step (float, optional): Step between each point in the range of BPMs checked. Defaults to 0.1.
+        alpha (float, optional): Weight for the tatum cosine function. Defaults to 1.
+        beta (float, optional): Weight for double tatum cosine function. Defaults to 1.
+        gamma (float, optional): Weight for half tatum cosine function. Defaults to 1.
         smooth_time_window (float, optional): Number of annotations smoothed. Defaults to 3.
         smooth_bpm_window (float, optional): Number of BPMs smoothed. Defaults to 1.
         bpm_prior (str, optional): Prior applied to BPMs. Defaults to "uniform".
@@ -45,6 +51,11 @@ class PeriodicBPMDetector(BaseEstimator, ClassifierMixin):
     self.min_bpm = min_bpm
     self.max_bpm = max_bpm
     self.bpm_step = bpm_step
+
+    self.alpha = alpha
+    self.beta = beta
+    self.gamma = gamma
+
     self.smooth_time_window = smooth_time_window
     self.smooth_bpm_window = smooth_bpm_window
     
@@ -85,28 +96,29 @@ class PeriodicBPMDetector(BaseEstimator, ClassifierMixin):
       times = times - times[0]
       
       tiled_times = np.tile(times, (bpms.shape[0], 1))
-      score = np.cos(((bpms.reshape(-1, 1) * np.pi) / 120)  * tiled_times) ** 4
-      score += np.cos(((bpms.reshape(-1, 1) * np.pi) / 30)  * tiled_times) ** 4
+      score = self.alpha * np.cos(((bpms.reshape(-1, 1) * np.pi) / 60)  * tiled_times) ** 4
+      score += self.beta * np.cos(((bpms.reshape(-1, 1) * np.pi) / 120)  * tiled_times) ** 4
+      score += self.gamma * np.cos(((bpms.reshape(-1, 1) * np.pi) / 30)  * tiled_times) ** 4
            
       score_meter = [3, 4]
       score = np.stack([
-        score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / 180)  * tiled_times) ** 6) * duration),
-        score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / 240)  * tiled_times) ** 6) * duration)])
+        score + ((np.cos(((bpms.reshape(-1, 1) * np.pi) / (60 * m))  * tiled_times) ** 2) * duration)
+        for m in score_meter])
 
       score = np.apply_along_axis(gaussian_filter1d, 2, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
       score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=self.smooth_time_window, truncate=1)
 
+      meter_idx = score.sum(axis=2).max(axis=1).argmax()
+      score = score[meter_idx]
+      meter = score_meter[meter_idx]
+
       prior = self.bpm_prior_func(bpms, **self.prior_kwargs)
       prior = (prior - prior.min() + 1e-20) / (prior.max() - prior.min() + 1e-20)
-      score *= prior.reshape(-1, 1)
-      
-      best_meter_score = score.sum(axis=2).max(axis=1).argmax()
-      best_score = score[best_meter_score]
-      meter = score_meter[best_meter_score]
+      score *= prior.reshape(-1, 1)      
 
-      loc = bpms[best_score.cumsum(axis=1).argmax(axis=0)]
+      loc = bpms[score.cumsum(axis=1).argmax(axis=0)]
       glob = self.estimator_func(loc)
-      return glob, (loc, bpms, best_score, meter)
+      return glob, (loc, bpms, score, meter)
 
     with ThreadPoolExecutor(self.workers) as executor:
         results = [x for x in tqdm(executor.map(estimate, X), total=len(X), disable=not self.verbose)]
