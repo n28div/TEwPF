@@ -23,26 +23,26 @@ def search_periodic(X, y, iterations, cv):
       def objective(trial):
         if prior == "gaussian":
           bpm_kwargs = {
-            "mu": trial.suggest_int("gaussian_prior_mu", 10, 300),
+            "mu": trial.suggest_int("gaussian_prior_mu", 50, 250),
             "sigma": trial.suggest_float("gaussian_prior_sigma", 1, 1000),
           }
         elif prior == "parncutt":
           bpm_kwargs = {
             "mu": trial.suggest_int("parncutt_prior_mu", 10, 300),
-            "sigma": trial.suggest_float("parncutt_prior_sigma", 0.01, 8),
+            "sigma": trial.suggest_float("parncutt_prior_sigma", 0.1, 10),
           }
         elif prior == "resonance":
           bpm_kwargs = {
-            "bpm_ext": trial.suggest_int("resonance_prior_bpm_ext", 10, 300),
-            "beta": trial.suggest_float("resonance_prior_beta", 0.01, 8),
+            "bpm_ext": trial.suggest_int("resonance_prior_bpm_ext", 50, 250),
+            "beta": trial.suggest_float("resonance_prior_beta", 0.1, 10),
           }
         else:
           bpm_kwargs = {}
 
         detector = PeriodicBPMDetector(
           min_bpm=trial.suggest_int("min_bpm", 10, 50),
-          max_bpm=trial.suggest_int("max_bpm", 180, 300),
-          bpm_step=trial.suggest_float("bpm_step", 0.01, 1.0),
+          max_bpm=trial.suggest_int("max_bpm", 240, 300),
+          bpm_step=trial.suggest_float("bpm_step", 0.1, 1.0),
           alpha=trial.suggest_float("alpha", 0.0, 1.0),
           beta=trial.suggest_float("beta", 0.0, 1.0),
           gamma=trial.suggest_float("gamma", 0.0, 1.0),
@@ -56,7 +56,7 @@ def search_periodic(X, y, iterations, cv):
 
         def accuracy_wrapper(y, y_pred, **kwargs):
           y_pred = [elem[0] for elem in y_pred]
-          return 0.5 * (accuracy(y, y_pred, "1") + accuracy(y, y_pred, "2"))
+          return accuracy(y, y_pred, "1")
 
         score =  cross_val_score(estimator=detector, X=X, y=y, 
                                 scoring=make_scorer(accuracy_wrapper, greater_is_better=True),
@@ -86,7 +86,7 @@ def search_optimisation(X, y, iterations, cv):
 
       def accuracy_wrapper(y, y_pred, **kwargs):
         y_pred = [elem[0] for elem in y_pred]
-        return 0.5 * (accuracy(y, y_pred, "1") + accuracy(y, y_pred, "2"))
+        return accuracy(y, y_pred, "1")
 
       score = cross_val_score(estimator=detector, X=X, y=y, 
                               scoring=make_scorer(accuracy_wrapper, greater_is_better=True),
