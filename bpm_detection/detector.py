@@ -130,6 +130,9 @@ class OptimisationBPMDetector(BaseEstimator, ClassifierMixin):
   def __init__(self, 
                min_bpm: int = 30, 
                max_bpm: int = 300, 
+               alpha: float = 1,
+               beta: float = 1,
+               gamma: float = 1,
                time_window: int = 3,
                estimator: str = "median",
                workers: int = 1,
@@ -140,6 +143,9 @@ class OptimisationBPMDetector(BaseEstimator, ClassifierMixin):
     Args:
         min_bpm (int, optional): Minimum BPM checked. Defaults to 30.
         max_bpm (int, optional): Maximum BPM checked. Defaults to 300.
+        alpha (float, optional): Weight for the tatum cosine function. Defaults to 1.
+        beta (float, optional): Weight for double tatum cosine function. Defaults to 1.
+        gamma (float, optional): Weight for half tatum cosine function. Defaults to 1.
         time_window (int, optional): Number of annotations in a time window. Defaults to 3.
         workers (int, optional): Number of workers for parallel execution. Defaults to 1.
         estimator (str, optional): Estimator used to extract the global BPM. Defaults to "median".
@@ -150,6 +156,10 @@ class OptimisationBPMDetector(BaseEstimator, ClassifierMixin):
     self.time_window = time_window
     self.workers = workers
     self.verbose = verbose
+
+    self.alpha = alpha
+    self.beta = beta
+    self.gamma = gamma
 
     self.estimator = estimator
     assert estimator in ESTIMATORS, f"Estimator {estimator} not in {ESTIMATORS.keys()}."
@@ -171,9 +181,9 @@ class OptimisationBPMDetector(BaseEstimator, ClassifierMixin):
     """
 
     def f(bpm, times, duration):
-      fitness = np.cos(((bpm * np.pi) / 120)  * times) ** 4
-      fitness += np.cos(((bpm * np.pi) / 30)  * times) ** 4
-      fitness += (np.cos(((bpm * np.pi) / 240)  * times)**2) * duration
+      fitness += self.alpha * np.cos(((bpm * np.pi) / 60)  * times) ** 4
+      fitness += self.beta * np.cos(((bpm * np.pi) / 120)  * times) ** 4
+      fitness += self.gamma * np.cos(((bpm * np.pi) / 30)  * times) ** 4
       return -1 * fitness.sum()
 
     def estimate(X):
