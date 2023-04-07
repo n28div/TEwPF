@@ -96,8 +96,9 @@ class PeriodicBPMDetector(BaseEstimator, ClassifierMixin):
       score = np.apply_along_axis(gaussian_filter1d, 2, score, sigma=(1 / self.bpm_step) * self.smooth_bpm_window, truncate=1)
       score = np.apply_along_axis(gaussian_filter1d, 1, score, sigma=self.smooth_time_window, truncate=1)
 
-      prior = self.bpm_prior_func(bpms, **self.prior_kwargs).reshape(-1, 1)
-      score *= prior
+      prior = self.bpm_prior_func(bpms, **self.prior_kwargs)
+      prior = (prior - prior.min() + 1e-20) / (prior.max() - prior.min() + 1e-20)
+      score *= prior.reshape(-1, 1)
       
       best_meter_score = score.sum(axis=2).max(axis=1).argmax()
       best_score = score[best_meter_score]

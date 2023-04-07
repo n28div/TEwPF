@@ -39,7 +39,7 @@ def search_periodic(X, y, iterations, cv):
         else:
           bpm_kwargs = {}
 
-        detector = BPMDetector(
+        detector = PeriodicBPMDetector(
           min_bpm=trial.suggest_int("min_bpm", 10, 50),
           max_bpm=trial.suggest_int("max_bpm", 180, 300),
           bpm_step=trial.suggest_float("bpm_step", 0.01, 1.0),
