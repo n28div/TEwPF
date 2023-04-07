@@ -76,6 +76,9 @@ def search_optimisation(X, y, iterations, cv):
       detector = OptimisationBPMDetector(
         min_bpm=trial.suggest_int("min_bpm", 10, 50),
         max_bpm=trial.suggest_int("max_bpm", 180, 300),
+        alpha=trial.suggest_float("alpha", 0.0, 1.0),
+        beta=trial.suggest_float("beta", 0.0, 1.0),
+        gamma=trial.suggest_float("gamma", 0.0, 1.0),
         time_window=trial.suggest_int("time_window", 1, 10),
         estimator=estimator,
         workers=os.cpu_count(),
