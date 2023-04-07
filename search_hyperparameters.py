@@ -56,10 +56,10 @@ def search_periodic(X, y, iterations, cv):
 
         def accuracy_wrapper(y, y_pred, **kwargs):
           y_pred = [elem[0] for elem in y_pred]
-          return accuracy(y, y_pred, **kwargs)
+          return 0.5 * (accuracy(y, y_pred, "1") + accuracy(y, y_pred, "2"))
 
         score =  cross_val_score(estimator=detector, X=X, y=y, 
-                                scoring=make_scorer(accuracy_wrapper, greater_is_better=True, accuracy_type="1"),
+                                scoring=make_scorer(accuracy_wrapper, greater_is_better=True),
                                 cv=cv, n_jobs=-1).mean()
         
         return score
@@ -86,10 +86,10 @@ def search_optimisation(X, y, iterations, cv):
 
       def accuracy_wrapper(y, y_pred, **kwargs):
         y_pred = [elem[0] for elem in y_pred]
-        return accuracy(y, y_pred, **kwargs)
+        return 0.5 * (accuracy(y, y_pred, "1") + accuracy(y, y_pred, "2"))
 
       score = cross_val_score(estimator=detector, X=X, y=y, 
-                              scoring=make_scorer(accuracy_wrapper, greater_is_better=True, accuracy_type="1"),
+                              scoring=make_scorer(accuracy_wrapper, greater_is_better=True),
                               cv=cv, n_jobs=-1).mean()
       
       return score
