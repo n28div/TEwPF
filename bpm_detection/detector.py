@@ -98,7 +98,7 @@ class PeriodicBPMDetector(BaseEstimator, ClassifierMixin):
       tiled_times = np.tile(times, (bpms.shape[0], 1))
       score = self.alpha * np.cos(((bpms.reshape(-1, 1) * np.pi) / 60)  * tiled_times) ** 4
       score += self.beta * np.cos(((bpms.reshape(-1, 1) * np.pi) / 120)  * tiled_times) ** 4
-      score += self.gamma * np.cos(((bpms.reshape(-1, 1) * np.pi) / 30)  * tiled_times) ** 4
+      score += self.gamma * np.cos(((bpms.reshape(-1, 1) * np.pi) / 240)  * tiled_times) ** 4
            
       score_meter = [3, 4]
       score = np.stack([
