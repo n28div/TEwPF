@@ -181,7 +181,7 @@ class OptimisationBPMDetector(BaseEstimator, ClassifierMixin):
     """
 
     def f(bpm, times, duration):
-      fitness += self.alpha * np.cos(((bpm * np.pi) / 60)  * times) ** 4
+      fitness = self.alpha * np.cos(((bpm * np.pi) / 60)  * times) ** 4
       fitness += self.beta * np.cos(((bpm * np.pi) / 120)  * times) ** 4
       fitness += self.gamma * np.cos(((bpm * np.pi) / 30)  * times) ** 4
       return -1 * fitness.sum()
