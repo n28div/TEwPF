@@ -1,1 +1,1 @@
-from bpm_detection.detector import PeriodicBPMDetector, OptimisationBPMDetector
+from bpm_detection.detector import PeriodicBPMDetector, OptimisationBPMDetector, PsoBPMDetector
