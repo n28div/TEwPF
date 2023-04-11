@@ -10,6 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.optimize import minimize
 from more_itertools import sliding_window
 from tqdm import tqdm
+import pyswarms as ps
 
 from bpm_detection.priors import PRIORS
 from bpm_detection.estimators import ESTIMATORS
@@ -207,3 +208,99 @@ class OptimisationBPMDetector(BaseEstimator, ClassifierMixin):
         results = [x for x in tqdm(executor.map(estimate, X), total=len(X), disable=not self.verbose)]
     
     return results
+
+
+class PsoBPMDetector(BaseEstimator, ClassifierMixin):
+  def __init__(self, 
+               min_bpm: int = 30, 
+               max_bpm: int = 300, 
+               alpha: float = 1,
+               beta: float = 1,
+               gamma: float = 1,
+               time_window: int = 3,
+               c1: float = 0.5,
+               c2: float = 0.5,
+               w: float = 0.5,
+               estimator: str = "median",
+               workers: int = 1,
+               verbose: bool = False):
+    """
+    Initialise the BPM detector with provided parameters.
+
+    Args:
+        min_bpm (int, optional): Minimum BPM checked. Defaults to 30.
+        max_bpm (int, optional): Maximum BPM checked. Defaults to 300.
+        alpha (float, optional): Weight for the tatum cosine function. Defaults to 1.
+        beta (float, optional): Weight for double tatum cosine function. Defaults to 1.
+        gamma (float, optional): Weight for half tatum cosine function. Defaults to 1.
+        time_window (int, optional): Number of annotations in a time window. Defaults to 3.
+        c1 (float, optional): Cognitive parameter for PSO. Defaults to 0.5.
+        c2 (float, optional): Social parameter for PSO. Defaults to 0.5.
+        w (float, optional): Inertia parameter for PSO. Defaults to 0.5.
+        workers (int, optional): Number of workers for parallel execution. Defaults to 1.
+        estimator (str, optional): Estimator used to extract the global BPM. Defaults to "median".
+        verbose (bool, optional): Show progress bar while predicting dataset. Defaults to False.
+    """
+    self.min_bpm = min_bpm
+    self.max_bpm = max_bpm
+    self.time_window = time_window
+    self.workers = workers
+    self.verbose = verbose
+
+    self.alpha = alpha
+    self.beta = beta
+    self.gamma = gamma
+
+    self.c1 = c1
+    self.c2 = c2
+    self.w = w
+
+    self.estimator = estimator
+    assert estimator in ESTIMATORS, f"Estimator {estimator} not in {ESTIMATORS.keys()}."
+    self.estimator_func = ESTIMATORS[estimator]
+
+  def fit(self, *args, **kwars):
+    return self
+
+  def predict(self, X: Union[np.array, List[Tuple[List[float], List[float]]]]) -> List[float]:
+    """
+    Predict the BPM for a set of annotations.
+
+    Args:
+        X (Union[np.array, List[Tuple[List[float], List[float]]]]): Input annotations
+          expressed as a list of tuples in the form (time annotations, duration annotations)
+
+    Returns:
+        List[float]: BPM detected for each sample.
+    """
+
+    def f(bpm, times, duration):
+      fitness = self.alpha * np.cos(((bpm * np.pi) / 60)  * times) ** 4
+      fitness += self.beta * np.cos(((bpm * np.pi) / 120)  * times) ** 4
+      fitness += self.gamma * np.cos(((bpm * np.pi) / 30)  * times) ** 4
+      return -1 * fitness.sum()
+
+    def estimate(X):
+      times, duration = X
+      times = times - times[0]
+
+      x0 = (self.max_bpm - self.min_bpm) / 2
+      tw = min(len(times), self.time_window)
+
+      opt = ps.single.GlobalBestPSO(
+        n_particles=10, 
+        dimensions=1,
+        options={ "c1": self.c1, "c2": self.c2, "w": self.w }, 
+        bounds=([self.min_bpm], [self.max_bpm]))
+
+      est = [opt.optimize(f, iters=100, times=t, duration=d, verbose=False)[1]
+        for t, d in zip(sliding_window(times, tw), 
+                        sliding_window(duration, tw))]
+      glob = self.estimator_func(est)
+      return glob, est
+    
+    with ThreadPoolExecutor(self.workers) as executor:
+        results = [x for x in tqdm(executor.map(estimate, X), total=len(X), disable=not self.verbose)]
+    
+    return results
+

@@ -7,7 +7,7 @@ import argparse
 import random
 
 from bpm_detection.dataset import load_dataset
-from bpm_detection import PeriodicBPMDetector, OptimisationBPMDetector
+from bpm_detection import PeriodicBPMDetector, OptimisationBPMDetector, PsoBPMDetector
 from bpm_detection.metrics import accuracy
 from bpm_detection.priors import PRIORS
 from bpm_detection.estimators import ESTIMATORS
@@ -99,9 +99,43 @@ def search_optimisation(X, y, iterations, cv):
     results[estimator] = study.trials_dataframe()
   return results
 
+def search_pso(X, y, iterations, cv):
+  results = {}
+  for estimator in ESTIMATORS:
+    def objective(trial):
+      detector = PsoBPMDetector(
+        min_bpm=trial.suggest_int("min_bpm", 10, 50),
+        max_bpm=trial.suggest_int("max_bpm", 180, 300),
+        alpha=trial.suggest_float("alpha", 0.0, 1.0),
+        beta=trial.suggest_float("beta", 0.0, 1.0),
+        gamma=trial.suggest_float("gamma", 0.0, 1.0),
+        c1=trial.suggest_float("c1", 0.0, 1.0),
+        c2=trial.suggest_float("c2", 0.0, 1.0),
+        w=trial.suggest_float("w", 0.0, 1.0),
+        time_window=trial.suggest_int("time_window", 1, 10),
+        estimator=estimator,
+        workers=os.cpu_count(),
+      )
+
+      def accuracy_wrapper(y, y_pred, **kwargs):
+        y_pred = [elem[0] for elem in y_pred]
+        return accuracy(y, y_pred, "1")
+
+      score = cross_val_score(estimator=detector, X=X, y=y, 
+                              scoring=make_scorer(accuracy_wrapper, greater_is_better=True),
+                              cv=cv, n_jobs=-1).mean()
+      
+      return score
+
+    study = optuna.create_study(direction="maximize")
+    study.optimize(objective, n_trials=iterations)
+    results[estimator] = study.trials_dataframe()
+  return results
+
 MODEL_SEARCH_FN = {
   "periodic": search_periodic,
   "optimisation": search_optimisation,
+  "pso": search_pso
 }
 
 parser = argparse.ArgumentParser()
