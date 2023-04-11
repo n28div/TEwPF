@@ -1,5 +1,6 @@
 import numpy as np
 from madmom.features.tempo import TempoEstimationProcessor
+import essentia.standard as es
 
 def estimate_onset(times: np.array, fs: int = 200) -> np.array:
   """
@@ -14,7 +15,7 @@ def estimate_onset(times: np.array, fs: int = 200) -> np.array:
       np.array: Onset signal
   """
   signal = np.zeros(int(times.max() * fs) + 1)
-  signal[(times * Fs).astype(int)] = 1
+  signal[(times * fs).astype(int)] = 1
   return signal
   
 def comb_estimate(times: np.array, fps: int = 200) -> float:
@@ -36,7 +37,7 @@ def comb_estimate(times: np.array, fps: int = 200) -> float:
   """
   onset = estimate_onset(times, fps)
   processor = TempoEstimationProcessor(fps=fps, method="comb")
-  return proc(onset)[0, 0]
+  return processor(onset)[0, 0]
 
 def acf_estimate(times: np.array, fps: int = 200) -> float:
   """
@@ -58,4 +59,22 @@ def acf_estimate(times: np.array, fps: int = 200) -> float:
   """
   onset = estimate_onset(times, fps)
   processor = TempoEstimationProcessor(fps=fps, method="acf")
-  return proc(onset)[0, 0]
+  return processor(onset)[0, 0]
+
+def histogram_estimate(times: np.array) -> float:
+  """
+  Estimate BPM using the method from [1].
+
+  [1] P. Grosche and M. Müller, 
+    "A mid-level representation for capturing dominant tempo and pulse information in music recordings",
+    ISMIR 2009
+
+  Args:
+      times (np.array): Times annotations.
+      
+  Returns:
+      float: BPM estimate.
+  """
+  onset = estimate_onset(times)
+  processor = es.BpmHistogram(frameRate=200)
+  return processor(onset)[0]
