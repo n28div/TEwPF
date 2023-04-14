@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 
-def accuracy(y: List[float], y_pred: List[float], accuracy_type: str = "1") -> bool:
+def accuracy(y: List[float], y_pred: List[float], accuracy_type: str = "1", confidence: float = 0.04) -> bool:
     """
     Compute the accuracy of a prediction. A prediction is considered as 
     correct if it is within the 4% of the original label.
@@ -14,7 +14,8 @@ def accuracy(y: List[float], y_pred: List[float], accuracy_type: str = "1") -> b
     Args:
         y (List[float]): True BPM
         y_pred (List[float]): BPM Prediction
-        accuracy_type (str, optional): Accuracy type. Either "1" or "2" (default).
+        accuracy_type (str, optional): Accuracy type. Either "1" or "2" (defaults to 1).
+        confidence (float, optional): Confidence interval as a percentage (defaults to 0.04).
 
     Returns:
         bool: True if the prediction is correct, False otherwise
@@ -22,8 +23,10 @@ def accuracy(y: List[float], y_pred: List[float], accuracy_type: str = "1") -> b
     assert accuracy_type in ["1", "2"]
     alphas = [1] if accuracy_type == "1" else [1/3, 1/2, 1, 2, 3]
 
+    assert 0 <= confidence <= 1
+
     return np.mean([
-        np.any([(a * pred * 0.96) < truth < (a * pred * 1.04) for a in alphas])
+        np.any([(a * pred * (1 - confidence)) < truth < (a * pred * (1 + confidence)) for a in alphas])
         for pred, truth in zip(y_pred, y)
     ])
 
@@ -49,10 +52,11 @@ def octave_error(y: List[float], y_pred: List[float], oe_type: str = "1") -> boo
     alphas = [1] if oe_type == "1" else [1/3, 1/2, 1, 2, 3]
 
     if oe_type == "1":
-        oe = [np.log2(pred / y) for pred, truth in zip(y_pred, y)]
+        oe = np.log2(y_pred / y)
     else:
-        oe = [min([np.log2((y_pred * a) / y) for a in alphas]) 
-              for pred, truth in zip(y_pred, y)]
+        oe = np.stack([np.log2((np.array(y_pred) * a) / y)
+                       for a in alphas])
+        oe = oe[np.abs(oe).argmin(axis=0), np.arange(oe.shape[1])]
 
     return oe
 

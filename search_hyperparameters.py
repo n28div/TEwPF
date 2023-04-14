@@ -41,7 +41,7 @@ def search_periodic(X, y, iterations, cv):
 
         detector = PeriodicBPMDetector(
           min_bpm=trial.suggest_int("min_bpm", 10, 50),
-          max_bpm=trial.suggest_int("max_bpm", 240, 300),
+          max_bpm=trial.suggest_int("max_bpm", 180, 300),
           bpm_step=trial.suggest_float("bpm_step", 0.1, 1.0),
           alpha=trial.suggest_float("alpha", 0.0, 1.0),
           beta=trial.suggest_float("beta", 0.0, 1.0),
